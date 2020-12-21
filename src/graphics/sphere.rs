@@ -1,12 +1,18 @@
-use ocl::{OclPrm, prm::{Float, Float2, Float3}};
+use ocl::{OclPrm, prm::Float3};
 
-// use crate::maths::Float3;
+use super::Material;
+
+// use crate::maths::*;
 
 
 
-#[repr(C)]
+#[repr(C,align(32))]
 #[derive(Debug,Copy,Default,Clone, PartialEq)]
-pub struct Sphere(pub Float3,pub Float3);
+pub struct Sphere{
+    pub pos : Float3,
+    pub radius : f32,
+    pub material : Material
+}
 
 unsafe impl OclPrm for Sphere{
 

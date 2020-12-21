@@ -1,9 +1,9 @@
 use std::time::Instant;
 
-use ocl::{Buffer, ProQue, prm::Float3};
+use ocl::{Buffer, OclPrm, ProQue, prm::{Float2, Float3}};
 
-mod maths;
-use maths::*;
+// mod maths;
+// use maths::*;
 
 mod util;
 use util::*;
@@ -11,7 +11,7 @@ use util::*;
 mod graphics;
 use graphics::*;
 
-
+mod window;
 
 fn trivial() -> ocl::Result<()> {
     // let src = r#"
@@ -28,19 +28,19 @@ fn trivial() -> ocl::Result<()> {
         .dims(1 << 20)
         .build()?;
 
-    let buffer = pro_que.create_buffer::<Sphere>()?;
-
-    let kernel = pro_que.kernel_builder("add")
-        .arg(&buffer)
+    let spheres = pro_que.create_buffer::<Matrix3x3>()?;
+    
+    let kernel = pro_que.kernel_builder("compute")
+        .arg(&spheres)
         .arg(10.0f32)
         .build()?;
 
     unsafe { kernel.enq()?; }
 
-    let mut vec = vec![Sphere::default(); buffer.len()];
-    buffer.read(&mut vec).enq()?;
+    let mut vec = vec![Matrix3x3::default(); spheres.len()];
+    spheres.read(&mut vec).enq()?;
 
-    println!("The value at index [{}] is now '{}'!", Float3::new(10.0,10.0,10.0), vec[50].0);
+    println!("The value at index [{}] is now '{:?}'!", Float3::new(10.0,10.0,10.0), vec[50]);
     Ok(())
 }
 

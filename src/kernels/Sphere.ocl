@@ -1,12 +1,23 @@
-typedef struct _Sphere
+typedef struct __attribute__ ((packed)) _Material
+{
+    float4 color;
+    float reflective;
+}Material;
+typedef struct __attribute__ ((packed)) _Sphere
 {
     float3 pos;
     float radius;
+    Material mat;
 }Sphere;
 
-__kernel void 
-add(__global Sphere* buffer, float scalar) {
-    buffer[get_global_id(0)].pos = (float3)(0.1,0.1,0.1);
-    buffer[get_global_id(0)].radius = 0.1;
+typedef struct __attribute__ ((packed)) _Camera
+{
+    float3 pos;
+    float3x3 rot;
+}Camera;
 
+
+__kernel void 
+compute(__global Sphere* buffer, float scalar) {
+    buffer[get_global_id(0)] += 1;
 }
