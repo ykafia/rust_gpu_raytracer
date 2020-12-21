@@ -1,0 +1,4 @@
+__kernel void 
+add(__global float2* buffer, float scalar) {
+    buffer[get_global_id(0)] += scalar;
+}

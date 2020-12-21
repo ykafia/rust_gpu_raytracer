@@ -1,0 +1,12 @@
+typedef struct _Sphere
+{
+    float3 pos;
+    float radius;
+}Sphere;
+
+__kernel void 
+add(__global Sphere* buffer, float scalar) {
+    buffer[get_global_id(0)].pos = (float3)(0.1,0.1,0.1);
+    buffer[get_global_id(0)].radius = 0.1;
+
+}
