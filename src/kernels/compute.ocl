@@ -1,5 +1,4 @@
 //Types
-
 typedef struct __attribute__ ((packed)) _Ray
 {
     float3 origin;
@@ -17,6 +16,12 @@ typedef struct __attribute__ ((packed)) _Sphere
     float radius;
     Material material;
 }Sphere;
+
+typedef struct __attribute__ ((packed)) _Plane
+{
+    float3 pos;
+    float3 normal;
+}Plane;
 
 typedef struct __attribute__ ((packed)) _Camera
 {
@@ -38,6 +43,7 @@ typedef struct __attribute__ ((packed)) _HitPoint
     float3 normal;
     float dist;
     float4 color;
+    bool hit;
 }HitPoint;
 
 
@@ -82,7 +88,8 @@ Ray create_ray(Camera camera, int x, int y, uint height, uint width) {
     return r;
 }
 
-bool sphere_hit(Ray r, Sphere s) {
+HitPoint sphere_hit(Ray r, Sphere s) {
+    HitPoint hp;
     //Create a line segment between the ray origin and the center of the sphere
     float3 l = s.pos - r.origin;
     //Use l as a hypotenuse and find the length of the adjacent side
@@ -91,22 +98,81 @@ bool sphere_hit(Ray r, Sphere s) {
     //This is equivalent to (but faster than) (l.length() * l.length()) - (adj2 * adj2)
     float d2 = dot(l,l) - (adj2 * adj2);
     //If that length-squared is less than radius squared, the ray intersects the sphere
-    return d2 < (s.radius * s.radius);
+    if(d2 < (s.radius * s.radius)){
+        float3 hitpos = r.origin + normalize(r.direction) * sqrt(d2);
+        hp.normal = hitpos - s.pos;
+        hp.color = s.material.color;
+        hp.hit = true;
+        return hp;
+    }
+    else {
+        hp.hit = false;
+        hp.dist = 100000000;
+        return hp;
+    }
+}
+HitPoint plane_hit(Ray r, Plane p) {
+    HitPoint hp;
+    //Create a line segment between the ray origin and the center of the sphere
+    float3 normal = p.normal;
+    float denom = dot(normal,r.direction);
+    if(denom > 0.000001) {
+        float3 v = p.pos - r.origin;
+        float dist = dot(v,normal) / denom;
+        if(dist >= 0.0) {
+            hp.hit = true;
+            hp.normal = normal;
+            hp.color = (float4)(0.2,0.2,0.2,1);
+            hp.dist = dist;
+            return hp;
+        }
+    }
+    hp.hit = false;
+    hp.dist = 100000000;
+    return hp;
+}
+
+uint compute_ray_hit(__global Sphere* spheres, uint sphere_number, __global Plane* planes, uint plane_number, Ray r){
+    HitPoint points[100];
+    uint size = 0;
+    for(int i = 0; i < (sphere_number + plane_number); i++) {
+        HitPoint sh = sphere_hit(r, spheres[i]);
+        if(sh.hit){
+            points[i] = sh;
+            i++;
+            size++;
+        }
+        HitPoint ph = plane_hit(r,planes[i]);
+        if(ph.hit){
+            points[i] = ph;
+            i++;
+            size++;
+        }
+    }
+    float min_dist = 10000;
+    HitPoint first;
+    for(int i = 0; i < size; i++) {
+        if(points[i].dist < min_dist ){
+            first = points[i];
+        }
+    }
+    return color_to_uint(first.color);
 }
 
 // Compute
 
 __kernel
-void compute(__global uint* screen, __global Sphere* spheres, __global Camera* cameras, uint height, uint width) {
+void compute(__global uint* screen, __global Sphere* spheres, uint sphere_number,__global Plane* planes, uint plane_number, __global Camera* cameras, uint height, uint width) {
     int index = get_global_id(0);
     int x = index / height;
     int y = index % width;
     Ray r = create_ray(cameras[0], x, y, height, width);
-    for(int i = 0; i < 6; i++) {
-        if(sphere_hit(r,spheres[i])){
-            screen[index] = color_to_uint(spheres[i].material.color);
-        }
-    }
+
+    // for(int i = 0; i < 6; i++) {
+    // if(sphere_hit(r,spheres[0])){
+    //     screen[index] = color_to_uint(spheres[0].material.color);
+    // }
+    // }
     
-    // screen[index] = color_to_uint((float4)(0,1,1,1));
+    screen[index] = compute_ray_hit(spheres,sphere_number,planes,plane_number,r);
 }

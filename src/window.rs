@@ -11,13 +11,16 @@ pub fn window(scene : &mut Scene) {
 
     let mut window =
         Window::new(
-            "Noise Test - Press ESC to exit",
+            "CL-Rays",
             scene.width as usize,
             scene.height as usize,
             WindowOptions {
                 resize: true,
                 scale_mode: ScaleMode::Center,
-                ..WindowOptions::default()
+                borderless: true,
+                title: true,
+                scale: Scale::FitScreen,
+                ..Default::default()
             },
         )
         .expect("Unable to open Window");
