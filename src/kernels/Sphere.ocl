@@ -10,14 +10,9 @@ typedef struct __attribute__ ((packed)) _Sphere
     Material mat;
 }Sphere;
 
-typedef struct __attribute__ ((packed)) _Camera
-{
-    float3 pos;
-    float3x3 rot;
-}Camera;
 
 
 __kernel void 
 compute(__global Sphere* buffer, float scalar) {
-    buffer[get_global_id(0)] += 1;
+    buffer[get_global_id(0)].pos += 1;
 }

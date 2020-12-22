@@ -26,15 +26,11 @@ pub fn window(scene : &mut Scene) {
         let first = Instant::now();
         // update buffer
         // println!("compute color");
-        // compute_color(scene).unwrap();
-
-        let convert = Instant::now();
-        let mut buf = vec![0, scene.width * scene.height];
-        scene.screen.read(&mut buf).enq().unwrap();
-        println!("Time converting : {}", (Instant::now() - convert).as_secs_f64());
+        scene.compute().unwrap();
         // ###########
+        let (height,width) = (scene.height as usize,scene.width as usize);
         window
-            .update_with_buffer(&buf, scene.width as usize, scene.height as usize)
+            .update_with_buffer(&scene.get_screen(), width, height)
             .unwrap();
         let last = Instant::now();
         elapsed = (last-first).as_secs_f64();

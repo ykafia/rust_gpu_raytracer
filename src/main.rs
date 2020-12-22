@@ -10,6 +10,7 @@ use util::*;
 
 mod graphics;
 use graphics::*;
+use window::window;
 
 mod window;
 
@@ -28,7 +29,7 @@ fn trivial() -> ocl::Result<()> {
         .dims(1 << 20)
         .build()?;
 
-    let spheres = pro_que.create_buffer::<Matrix3x3>()?;
+    let spheres = pro_que.create_buffer::<Sphere>()?;
     
     let kernel = pro_que.kernel_builder("compute")
         .arg(&spheres)
@@ -37,18 +38,34 @@ fn trivial() -> ocl::Result<()> {
 
     unsafe { kernel.enq()?; }
 
-    let mut vec = vec![Matrix3x3::default(); spheres.len()];
+    // let mut vec = vec![Sphere::default(); spheres.len()];
+    let mut vec = Vec::new();
     spheres.read(&mut vec).enq()?;
 
-    println!("The value at index [{}] is now '{:?}'!", Float3::new(10.0,10.0,10.0), vec[50]);
+    println!("The value at 50 is now '{:?}'!", vec[50].pos);
+    unsafe { kernel.enq()?; }
+    spheres.read(&mut vec).enq()?;
+
+    println!("The value at 50 is now '{:?}'!", vec[50].pos);
     Ok(())
 }
 
 
+fn test_scene(){
+    let mut scene = Scene::new(720,480).unwrap();
+    scene.compute().unwrap();
+    let screen = scene.get_screen();
+    for i in 172800..172805 {
+        print!("{}-",screen[i])
+    }
+}
 
 fn main() {
     
-    trivial().unwrap();
+    // trivial().unwrap();
+    // test_scene();
+    window(&mut Scene::new(720,480).unwrap());
+
     // println!("{}", ( Instant::now() -first).as_secs_f64());
     // trivial_explained().unwrap();
     // trivial_exploded().unwrap();

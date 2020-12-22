@@ -1,0 +1,112 @@
+//Types
+
+typedef struct __attribute__ ((packed)) _Ray
+{
+    float3 origin;
+    float3 direction;
+}Ray;
+
+typedef struct __attribute__ ((packed)) _Material
+{
+    float4 color;
+    float reflective;
+}Material;
+typedef struct __attribute__ ((packed)) _Sphere
+{
+    float3 pos;
+    float radius;
+    Material material;
+}Sphere;
+
+typedef struct __attribute__ ((packed)) _Camera
+{
+    float3 pos;
+    float3 dir;
+    float fov;
+}Camera;
+
+typedef struct __attribute__ ((packed)) _Matrix3x3
+{
+    float3 xaxis;
+    float3 yaxis;
+    float3 zaxis;
+}Matrix3x3;
+
+
+typedef struct __attribute__ ((packed)) _HitPoint
+{
+    float3 normal;
+    float dist;
+    float4 color;
+}HitPoint;
+
+
+// Functions
+
+uint color_to_uint(float4 color) {
+    return (uint)(color.x * 255) << 2*8 | (uint)(color.y * 255) << 1*8 | (uint)(color.z * 255);
+}
+
+float3 dot_m3_f3(Matrix3x3 mat, float3 v) {
+    float3 result;
+
+    result.x = dot(mat.xaxis,v);
+    result.y = dot(mat.yaxis,v);
+    result.z = dot(mat.zaxis,v);
+
+    return result;
+}
+
+Matrix3x3 direction_to_matrix(float3 direction){
+    Matrix3x3 mat;
+    float3 up = (float3)(0,1,0);
+    float3 zaxis = normalize(direction);
+    float3 xaxis = normalize(cross(up,zaxis));
+    float3 yaxis = normalize(cross(zaxis,xaxis));
+
+    mat.xaxis = xaxis;
+    mat.yaxis = yaxis;
+    mat.zaxis = zaxis;
+    
+    return mat;
+}
+
+Ray create_ray(Camera camera, int x, int y, uint height, uint width) {
+    Ray r;
+    float fov_adjustment = tan(radians(camera.fov) / 2.0);
+    float aspect_ratio = width / height;
+    float dir_x = ((((x + 0.5) / width) * 2.0 - 1.0) * aspect_ratio) * fov_adjustment;
+    float dir_y = 1.0 - ((y + 0.5) / height) * 2.0;
+    r.origin = camera.pos;
+    r.direction = normalize(dot_m3_f3(direction_to_matrix(camera.dir), normalize((float3)(dir_x,dir_y,1))));
+    return r;
+}
+
+bool sphere_hit(Ray r, Sphere s) {
+    //Create a line segment between the ray origin and the center of the sphere
+    float3 l = s.pos - r.origin;
+    //Use l as a hypotenuse and find the length of the adjacent side
+    float adj2 = dot(l, r.direction);
+    //Find the length-squared of the opposite side
+    //This is equivalent to (but faster than) (l.length() * l.length()) - (adj2 * adj2)
+    float d2 = dot(l,l) - (adj2 * adj2);
+    //If that length-squared is less than radius squared, the ray intersects the sphere
+    return d2 < (s.radius * s.radius);
+}
+
+// Compute
+
+__kernel
+void compute(__global uint* screen, __global Sphere* spheres, __global Camera* cameras, uint height, uint width) {
+    int index = get_global_id(0);
+    int x = index / height;
+    int y = index % width;
+    Ray r = create_ray(cameras[0], x, y, height, width);
+    for(int i = 0; i < 6; i++) {
+        if(sphere_hit(r,spheres[i])){
+            screen[index] = color_to_uint(spheres[i].material.color);
+        }
+    }
+    
+    // screen[index] = color_to_uint((float4)(0,1,1,1));
+}
