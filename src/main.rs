@@ -14,7 +14,7 @@ use window::window;
 
 mod window;
 
-fn trivial() -> ocl::Result<()> {
+fn trivial() {
     // let src = r#"
     //     __kernel 
     //     void add(__global float2* buffer, float scalar) {
@@ -26,33 +26,38 @@ fn trivial() -> ocl::Result<()> {
 
     let pro_que = ProQue::builder()
         .src(src)
-        .dims(1 << 20)
-        .build()?;
+        .dims(50)
+        .build().unwrap();
 
-    let spheres = pro_que.create_buffer::<Sphere>()?;
+    let spheres = pro_que.create_buffer::<Sphere>().unwrap();
+    let screen = pro_que.create_buffer::<u32>().unwrap();
+    let mut sp = vec![Sphere::new_cyan();50];
+    let mut sc = vec![0u32;50];
+
+    spheres.write(&sp).enq().unwrap();
+    screen.write(&sc).enq().unwrap();
     
     let kernel = pro_que.kernel_builder("compute")
         .arg(&spheres)
-        .arg(10.0f32)
-        .build()?;
+        .arg(&screen)
+        .build().unwrap();
 
-    unsafe { kernel.enq()?; }
+    unsafe { kernel.enq().unwrap(); }
 
     // let mut vec = vec![Sphere::default(); spheres.len()];
-    let mut vec = Vec::new();
-    spheres.read(&mut vec).enq()?;
+    // let mut vec = Vec::new();
+    spheres.read(&mut sp).enq().unwrap();
 
-    println!("The value at 50 is now '{:?}'!", vec[50].pos);
-    unsafe { kernel.enq()?; }
-    spheres.read(&mut vec).enq()?;
+    println!("The value at 50 is now '{:?}'!", sp[0].pos);
+    unsafe { kernel.enq().unwrap(); }
+    spheres.read(&mut sp).enq().unwrap();
 
-    println!("The value at 50 is now '{:?}'!", vec[50].pos);
-    Ok(())
+    println!("The value at 50 is now '{:?}'!", sp[49].pos);
 }
 
 
 fn test_scene(){
-    let mut scene = Scene::new(720,480).unwrap();
+    let mut scene = Scene::new(720,480);
     scene.compute().unwrap();
     let screen = scene.get_screen();
     for i in 172800..172805 {
@@ -61,10 +66,10 @@ fn test_scene(){
 }
 
 fn main() {
-    
-    // trivial().unwrap();
+    println!("{}",std::mem::size_of::<Camera>());
+    // trivial();
     // test_scene();
-    window(&mut Scene::new(720,480).unwrap());
+    window(&mut Scene::new(720,480));
 
     // println!("{}", ( Instant::now() -first).as_secs_f64());
     // trivial_explained().unwrap();

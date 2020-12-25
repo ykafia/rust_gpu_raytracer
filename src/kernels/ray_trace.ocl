@@ -1,10 +1,4 @@
-//Types
-typedef struct __attribute__ ((packed)) _BufferInfo
-{
-    uint sphere_number;
-    uint plane_number;
-    uint light_number;
-}BufferInfo;
+// Common types
 
 typedef struct __attribute__ ((packed)) _Ray
 {
@@ -12,38 +6,6 @@ typedef struct __attribute__ ((packed)) _Ray
     float3 direction;
 }Ray;
 
-typedef struct __attribute__ ((packed)) _Material
-{
-    float3 color;
-    float reflective;
-    float albedo;
-}Material;
-typedef struct __attribute__ ((packed)) _Sphere
-{
-    float3 pos;
-    float radius;
-    Material material;
-}Sphere;
-
-typedef struct __attribute__ ((packed)) _DirectionalLight
-{
-    float3 direction;
-    float3 color;
-    float intensity;
-}DirectionalLight;
-
-typedef struct __attribute__ ((packed)) _Plane
-{
-    float3 pos;
-    float3 normal;
-}Plane;
-
-typedef struct __attribute__ ((packed)) _Camera
-{
-    float3 pos;
-    float3 dir;
-    float fov;
-}Camera;
 
 typedef struct __attribute__ ((packed)) _Matrix3x3
 {
@@ -52,6 +14,28 @@ typedef struct __attribute__ ((packed)) _Matrix3x3
     float3 zaxis;
 }Matrix3x3;
 
+typedef struct __attribute__ ((packed)) _RenderInfo
+{
+    uint sphere_number;
+    uint plane_number;
+    uint light_number;
+    uint height;
+    uint width;
+}RenderInfo;
+
+typedef struct __attribute__ ((packed)) _Camera
+{
+    float3 pos;
+    float3 dir;
+    float fov;
+}Camera;
+
+typedef struct __attribute__ ((packed)) _Material
+{
+    float3 color;
+    float reflectivity;
+    float albedo;
+}Material;
 
 typedef struct __attribute__ ((packed)) _HitPoint
 {
@@ -63,8 +47,31 @@ typedef struct __attribute__ ((packed)) _HitPoint
     float albedo;
 }HitPoint;
 
+// Buffer types
 
-// Functions
+typedef struct __attribute__ ((packed)) _Sphere
+{
+    float3 pos;
+    float radius;
+    Material material;
+}Sphere;
+
+typedef struct __attribute__ ((packed)) _Plane
+{
+    float3 pos;
+    float3 normal;
+    Material material;
+}Plane;
+
+typedef struct __attribute__ ((packed)) _SunLight
+{
+    float3 direction;
+    float3 color;
+    float intensity;
+}SunLight;
+
+
+//Functions 
 
 uint color_to_uint(float3 color) {
     return (uint)(color.x * 255) << 2*8 | (uint)(color.y * 255) << 1*8 | (uint)(color.z * 255);
@@ -94,8 +101,10 @@ Matrix3x3 direction_to_matrix(float3 direction){
     return mat;
 }
 
-Ray create_ray(Camera camera, int x, int y, uint height, uint width) {
+Ray create_ray(Camera camera, int x, int y, RenderInfo ri) {
     Ray r;
+    uint height = ri.height;
+    uint width = ri.width;
     float fov_adjustment = tan(radians(camera.fov) / 2.0);
     float aspect_ratio = width / height;
     float dir_y = ((((x + 0.5) / width) * 2.0 - 1.0) * aspect_ratio) * fov_adjustment;
@@ -105,23 +114,7 @@ Ray create_ray(Camera camera, int x, int y, uint height, uint width) {
     return r;
 }
 
-
-
-bool sphere_hit_simple(Ray r, Sphere s) {
-    HitPoint hp;
-    //Create a line segment between the ray origin and the center of the sphere
-    float3 l = s.pos - r.origin;
-    //Use l as a hypotenuse and find the length of the adjacent side
-    float adj2 = dot(l, r.direction);
-    //Find the length-squared of the opposite side
-    //This is equivalent to (but faster than) (l.length() * l.length()) - (adj2 * adj2)
-    float d2 = dot(l,l) - (adj2 * adj2);
-    //If that length-squared is less than radius squared, the ray intersects the sphere
-    if(d2 < (s.radius * s.radius)){
-        return true;
-    }
-    return false;
-}
+// Hitting functions
 
 HitPoint sphere_hit(Ray r, Sphere s) {
     HitPoint hp;
@@ -171,7 +164,25 @@ HitPoint plane_hit(Ray r, Plane p) {
     return hp;
 }
 
-float3 compute_shadowed(__global Sphere* spheres, DirectionalLight light, uint sphere_number, HitPoint hp) {
+bool sphere_hit_simple(Ray r, Sphere s) {
+    HitPoint hp;
+    //Create a line segment between the ray origin and the center of the sphere
+    float3 l = s.pos - r.origin;
+    //Use l as a hypotenuse and find the length of the adjacent side
+    float adj2 = dot(l, r.direction);
+    //Find the length-squared of the opposite side
+    //This is equivalent to (but faster than) (l.length() * l.length()) - (adj2 * adj2)
+    float d2 = dot(l,l) - (adj2 * adj2);
+    //If that length-squared is less than radius squared, the ray intersects the sphere
+    if(d2 < (s.radius * s.radius)){
+        return true;
+    }
+    return false;
+}
+
+// Color computing functions
+
+float3 compute_shadowed(__global Sphere* spheres, SunLight light, uint sphere_number, HitPoint hp) {
     Ray r;
     r.origin = hp.pos + normalize(hp.normal) * 0.0001f ;
     bool shadowed = false;
@@ -191,41 +202,35 @@ float3 compute_shadowed(__global Sphere* spheres, DirectionalLight light, uint s
         return hp.color * intensity * light.color * intensity * reflected;
     }
 }
-
-
 //Compute color for each points
-float3  compute_color(__global DirectionalLight* lights, __global Sphere* spheres, __global Plane* planes, __global BufferInfo* bufis, HitPoint hp) {
+float3  compute_color(__global SunLight* lights, __global Sphere* spheres, __global Plane* planes, RenderInfo ri, HitPoint hp) {
     float3 color = (float3)(0,0,0);
-    BufferInfo bufi = bufis[0];
     Ray r;
     r.origin = hp.pos;
-    for(int i = 0; i < bufi.light_number; i++){
-        color = compute_shadowed(spheres,lights[0],bufi.sphere_number,hp);
+    for(int i = 0; i < ri.light_number; i++){
+        color = compute_shadowed(spheres,lights[i],ri.sphere_number,hp);
     }
     return color;
 
-
 }
 
-
-uint compute_ray_hit(__global DirectionalLight* lights, __global Sphere* spheres, __global Plane* planes, __global BufferInfo* bufis, Ray r){
+uint compute_ray_hit(__global SunLight* lights, __global Sphere* spheres, __global Plane* planes,RenderInfo ri, Ray r){
     HitPoint points[5];
-    BufferInfo bufi = bufis[0];
     uint size = 0;
-    for(int i = 1; i< bufi.sphere_number+1;i++) {
+    for(int i = 1; i< ri.sphere_number+1;i++) {
         HitPoint sh = sphere_hit(r, spheres[i]);
         if(sh.hit){
             points[size] = sh;
-            // float3 computed_color = compute_color(lights,spheres,planes,bufis,sh);
+            // float3 computed_color = compute_color(lights,spheres,planes,ris,sh);
             // points[size].color = computed_color;
             size++;
         }
     }
-    for(int i = 0; i< bufi.plane_number;i++) {
+    for(int i = 0; i< ri.plane_number;i++) {
         HitPoint ph = plane_hit(r, planes[i]);
         if(ph.hit){
             points[size] = ph;
-            points[size].color = compute_color(lights,spheres,planes,bufis,ph);
+            points[size].color = compute_color(lights,spheres,planes,ri,ph);
             size++;
         }
     }
@@ -242,32 +247,18 @@ uint compute_ray_hit(__global DirectionalLight* lights, __global Sphere* spheres
     
 }
 
-
-// Compute
-
 __kernel
-void compute(__global uint* screen,__global DirectionalLight* lights, __global Sphere* spheres,__global Plane* planes, __global Camera* cameras, __global BufferInfo* bufis, uint height, uint width) {
+void ray_trace(__global uint* screen, Camera camera, RenderInfo ri, __global Sphere* spheres, __global Plane* planes, __global SunLight* sunlights){
     int index = get_global_id(0);
     
-    int x = index / height;
-    int y = index % width;
-    Ray r = create_ray(cameras[0], x,y, height, width);
-    // if(x>height)
-    //     screen[index] = color_to_uint((float3)(1,0,0,1));
-    // else
-    // spheres[0].material.color = (float3)(0,1,1,0);
-    screen[index] = compute_ray_hit(lights,spheres,planes,bufis,r);
+    int x = index / ri.height;
+    int y = index % ri.width;
+    Ray r = create_ray(camera, x,y, ri);
+    // screen[0] = camera.pos.y;
+    // int x = index / height;
+    // int y = index % width;
+
+    screen[index] = compute_ray_hit(sunlights,spheres,planes,ri,r);
+
 }
-// __kernel
-// void compute(__global uint* screen,__global Sphere* spheres) {
-//     int index = get_global_id(0);
-    
-//     // int x = index / height;
-//     // int y = index % width;
-//     // Ray r = create_ray(cameras[0], x,y, height, width);
-//     // // if(x>height)
-//     // //     screen[index] = color_to_uint((float3)(1,0,0,1));
-//     // // else
-//     // // spheres[0].material.color = (float3)(0,1,1,0);
-//     screen[index] = color_to_uint(spheres[2].material.color);
-// }
+

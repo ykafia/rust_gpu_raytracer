@@ -79,7 +79,7 @@ fn trivial_exploded() -> ocl::Result<()> {
         .src(src)
         .build(&context)?;
     let queue = Queue::new(&context, device, None)?;
-    let dims = 1 << 20;
+    let dims = 1 << 21;
     // [NOTE]: At this point we could manually assemble a ProQue by calling:
     // `ProQue::new(context, queue, program, Some(dims))`. One might want to
     // do this when only one program and queue are all that's needed. Wrapping
