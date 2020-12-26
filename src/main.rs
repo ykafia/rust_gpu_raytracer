@@ -1,5 +1,6 @@
 use std::time::Instant;
 
+use nalgebra::Rotation3;
 use ocl::{Buffer, OclPrm, ProQue, prm::{Float2, Float3}};
 
 // mod maths;
@@ -23,7 +24,6 @@ fn trivial() {
     // "#;
 
     let src = read_file("./src/kernels/Sphere.ocl");
-
     let pro_que = ProQue::builder()
         .src(src)
         .dims(50)

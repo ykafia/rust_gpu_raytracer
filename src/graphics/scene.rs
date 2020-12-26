@@ -1,11 +1,11 @@
 use std::error::{self, Error};
 
 use nalgebra::Vector3;
-use ocl::{Buffer, OclPrm, ProQue, Result, prm::{Float2, Float3}};
+use ocl::{Buffer, OclPrm, ProQue, Result, prm::{Float2, Float3, Float4}};
 
 use crate::util::read_file;
 
-use super::{RenderInfo, Camera, DirectionalLight, Plane, Sphere, directional_light};
+use super::{Camera, DirectionalLight, Plane, RenderInfo, Sphere, directional_light, sphere};
 
 pub struct Scene {
     pub width : u32,
@@ -20,7 +20,8 @@ pub struct Scene {
     pub directional_lights_buf : Buffer<DirectionalLight>,
     pub bufi : RenderInfo,
     pub screen : Vec<u32>,
-    pub screen_buf : Buffer<u32>
+    pub screen_buf : Buffer<u32>,
+    pub pro_que : ProQue
 }
 
 impl Scene {
@@ -42,17 +43,21 @@ impl Scene {
         
 
         let sphere_pos = Vector3::new(0.0,1.0,0.0);
-        let cam_pos = Vector3::new(0.0,1.0,-5.0);
+        let cam_pos = Vector3::new(0.0,1.0,-50.0);
 
         let camera = Camera::new(cam_pos,sphere_pos-cam_pos);
 
         let screen = vec![0u32;(height*width) as usize];
-        let spheres = vec![Sphere::new_cyan(sphere_pos)];
+
+        let spheres = vec![
+            Sphere::new_cyan(sphere_pos),
+            Sphere::new_red(Vector3::new(0.0,2.0,0.0))
+        ];
         let planes = vec![Plane::default()];
         let directional_lights = vec![DirectionalLight::default()];
 
         let screen_buf = pro_que.create_buffer::<u32>().unwrap();
-        let spheres_buf = pro_que.create_buffer::<Sphere>().expect("Sphere buffer badly create");
+        let spheres_buf: Buffer<Sphere> = pro_que.create_buffer::<Sphere>().expect("Sphere buffer badly create");
         let directional_lights_buf = pro_que.create_buffer::<DirectionalLight>().unwrap();
         let planes_buf = pro_que.create_buffer::<Plane>().unwrap(); 
         
@@ -96,6 +101,7 @@ impl Scene {
             bufi,
             screen,
             screen_buf,
+            pro_que
         }
     
 
@@ -109,8 +115,34 @@ impl Scene {
         self.screen_buf.read(&mut self.screen).enq().unwrap();
         &self.screen
     }
-    // pub fn update_spheres(&mut self) -> Result<()> {
-    //     self.spheres_buf.write(&self.spheres).enq()?;
-    //     Ok(())
-    // }
+    pub fn update_spheres(&mut self) -> Result<()> {
+        self.spheres_buf.write(&self.spheres).enq()?;
+        Ok(())
+    }
+    pub fn add_sphere(&mut self) -> Result<()> {
+        self.spheres.push(Sphere::new_random());
+        self.update_spheres()
+    }
+    pub fn update_kernel(&mut self) {
+        let ri = self.get_ri();
+        self.bufi = ri;
+        self.kernel =
+            self.pro_que.kernel_builder("ray_trace")
+            .arg(&self.screen_buf)
+            .arg(self.camera)
+            .arg(ri)
+            .arg(&self.spheres_buf)
+            .arg(&self.planes_buf)
+            .arg(&self.directional_lights_buf)
+            .build().unwrap();
+    }
+    pub fn get_ri(&mut self) -> RenderInfo {
+        RenderInfo {
+            sphere_number : self.spheres.len() as u32,
+            plane_number : self.planes.len() as u32,
+            light_number : self.directional_lights.len() as u32,
+            height: self.bufi.height,
+            width : self.bufi.width
+        }
+    }
 }

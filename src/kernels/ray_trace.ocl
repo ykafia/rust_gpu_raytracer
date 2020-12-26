@@ -90,6 +90,7 @@ float3 dot_m3_f3(Matrix3x3 mat, float3 v) {
 
 Matrix3x3 direction_to_matrix(float3 direction){
     Matrix3x3 mat;
+    
     float3 up = (float3)(0,1,0);
     float3 zaxis = normalize(direction);
     float3 xaxis = normalize(cross(up,zaxis));
@@ -98,7 +99,7 @@ Matrix3x3 direction_to_matrix(float3 direction){
     mat.xaxis = xaxis;
     mat.yaxis = yaxis;
     mat.zaxis = zaxis;
-    
+        
     return mat;
 }
 
@@ -150,6 +151,7 @@ HitPoint sphere_hit(Ray r, Sphere s) {
 }
 HitPoint plane_hit(Ray r, Plane p) {
     HitPoint hp;
+    hp.sphere_index = -1;
     float3 normal = p.normal;
     float denom = dot(normal, r.direction); 
     if (denom > 1e-6) { 
@@ -158,10 +160,10 @@ HitPoint plane_hit(Ray r, Plane p) {
         if(t >= 0) {
             hp.hit = true;
             hp.normal = -normal;
-            hp.color = (float3)(0.2,0.2,0.2);
+            hp.color = p.material.color;
             hp.dist = t;
             hp.pos = r.origin + normalize(r.direction) * t;
-            hp.albedo = 3.0;
+            hp.albedo = p.material.albedo;
             return hp;
         }
     } 
@@ -194,7 +196,7 @@ float3 compute_shadowed(__global Sphere* spheres, SunLight light, uint sphere_nu
     bool shadowed = false;
     r.direction = normalize(-light.direction);
     for(int i = 0; i < sphere_number; i++) {
-        if(sphere_hit_simple(r, spheres[i])){
+        if(sphere_hit_simple(r, spheres[i]) && hp.sphere_index != i){
             shadowed = true;
         }
     }
@@ -227,6 +229,7 @@ uint compute_ray_hit(__global SunLight* lights, __global Sphere* spheres, __glob
         HitPoint sh = sphere_hit(r, spheres[i]);
         if(sh.hit){
             points[size] = sh;
+            points[size].sphere_index = i;
             points[size].color = compute_color(lights,spheres,planes,ri,sh);
             size++;
         }

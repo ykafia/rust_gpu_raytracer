@@ -1,5 +1,5 @@
 use nalgebra::Vector3;
-use ocl::prm::Float4;
+use ocl::{OclPrm, prm::Float4};
 
 
 #[repr(C,packed)]
@@ -18,7 +18,10 @@ impl Camera {
         Self {
             pos : Float4::new(0.0,1.0,-5.0,0.0),
             dir : Float4::new(dir.x,dir.y,dir.z,0.0),
-            fov : 90.0
+            fov : 80.0
         }
+    }
+    pub fn face_towards(&mut self, target : Float4) {
+        self.dir = target - self.pos;
     }
 }

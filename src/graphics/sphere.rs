@@ -49,7 +49,18 @@ impl Sphere {
             pos : Float4::new(pos.x,pos.y,pos.z,0.0),
             radius : 1.0,
             material : Material {
-                color : Float4::new(0.0,1.0,0.0,0.0),
+                color : Float4::new(0.0,0.8,1.0,0.0),
+                reflectivity : 0.0,
+                albedo : 1.0
+            }
+        }
+    }
+    pub fn new_red(pos : Vector3<f32>) -> Self{
+        Self {
+            pos : Float4::new(pos.x,pos.y,pos.z,0.0),
+            radius : 1.0,
+            material : Material {
+                color : Float4::new(1.0,0.0,0.0,0.0),
                 reflectivity : 0.0,
                 albedo : 1.0
             }
