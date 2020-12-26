@@ -31,7 +31,7 @@ fn trivial() {
 
     let spheres = pro_que.create_buffer::<Sphere>().unwrap();
     let screen = pro_que.create_buffer::<u32>().unwrap();
-    let mut sp = vec![Sphere::new_cyan();50];
+    let mut sp = vec![Sphere::default();50];
     let mut sc = vec![0u32;50];
 
     spheres.write(&sp).enq().unwrap();

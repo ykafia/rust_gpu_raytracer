@@ -1,5 +1,6 @@
 use std::error::{self, Error};
 
+use nalgebra::Vector3;
 use ocl::{Buffer, OclPrm, ProQue, Result, prm::{Float2, Float3}};
 
 use crate::util::read_file;
@@ -40,10 +41,13 @@ impl Scene {
             .build().unwrap();
         
 
-        let camera = Camera::new();
+        let sphere_pos = Vector3::new(0.0,1.0,0.0);
+        let cam_pos = Vector3::new(0.0,1.0,-5.0);
+
+        let camera = Camera::new(cam_pos,sphere_pos-cam_pos);
 
         let screen = vec![0u32;(height*width) as usize];
-        let spheres = vec![Sphere::new_cyan()];
+        let spheres = vec![Sphere::new_cyan(sphere_pos)];
         let planes = vec![Plane::default()];
         let directional_lights = vec![DirectionalLight::default()];
 

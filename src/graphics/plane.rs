@@ -14,7 +14,7 @@ pub struct Plane {
 impl Default for Plane {
     fn default() -> Self {
         Self{
-            pos : Float4::new(0.0,-2.0,0.0,0.0),
+            pos : Float4::new(0.0,-1.0,0.0,0.0),
             normal : Float4::new(0.0,-1.0,0.0,0.0),
             material : Material {
                 color: Float4::new(0.2,0.2,0.2,0.0),

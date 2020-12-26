@@ -12,7 +12,7 @@ pub struct DirectionalLight {
 impl Default for DirectionalLight {
     fn default() -> Self {
         Self {
-            direction : Float4::new(-1.0,-1.0, 0.0,0.0),
+            direction : Float4::new(0.0,-1.0, 1.0,0.0),
             color : Float4::new(1.0,1.0,1.0,0.0),
             intensity : 1.0
         }

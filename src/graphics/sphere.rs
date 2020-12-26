@@ -1,4 +1,5 @@
 
+use nalgebra::Vector3;
 use ocl::{OclPrm, prm::Float4};
 use rand::Rng;
 
@@ -18,7 +19,7 @@ pub struct Sphere{
 
 impl Default for Sphere {
     fn default() -> Self {
-        Self::new_cyan()
+        Self::new_random()
     }
 }
 
@@ -43,12 +44,12 @@ impl Sphere {
             rng.gen::<f32>() %1.0
         )
     }
-    pub fn new_cyan() -> Self{
+    pub fn new_cyan(pos : Vector3<f32>) -> Self{
         Self {
-            pos : Float4::new(0.0,3.0,5.0,0.0),
+            pos : Float4::new(pos.x,pos.y,pos.z,0.0),
             radius : 1.0,
             material : Material {
-                color : Float4::new(0.0,1.0,1.0,0.0),
+                color : Float4::new(0.0,1.0,0.0,0.0),
                 reflectivity : 0.0,
                 albedo : 1.0
             }

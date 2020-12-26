@@ -45,6 +45,7 @@ typedef struct __attribute__ ((packed)) _HitPoint
     float3 color;
     bool hit;
     float albedo;
+    int sphere_index;
 }HitPoint;
 
 // Buffer types
@@ -120,27 +121,32 @@ HitPoint sphere_hit(Ray r, Sphere s) {
     HitPoint hp;
     //Create a line segment between the ray origin and the center of the sphere
     float3 l = s.pos - r.origin;
-    //Use l as a hypotenuse and find the length of the adjacent side
-    float adj2 = dot(l, r.direction);
-    //Find the length-squared of the opposite side
-    //This is equivalent to (but faster than) (l.length() * l.length()) - (adj2 * adj2)
-    float d2 = dot(l,l) - (adj2 * adj2);
-    //If that length-squared is less than radius squared, the ray intersects the sphere
-    if(d2 < (s.radius * s.radius)){
-        float3 hitpos = r.origin + normalize(r.direction) * sqrt(d2);
-        hp.normal = hitpos - s.pos;
-        hp.color = s.material.color;
-        hp.hit = true;
-        hp.dist = sqrt(d2);
-        hp.pos = r.origin + normalize(r.direction) * sqrt(d2);
-        hp.albedo = s.material.albedo;
-        return hp;
-    }
-    else {
+    float adj = dot(l,r.direction);
+    float d2 = dot(l,l) - (adj * adj);
+    float radius2 = s.radius * s.radius;
+    if (d2 > radius2) {
         hp.hit = false;
-        hp.dist = 100000000;
+        hp.color = (float3)(1,1,1);
         return hp;
     }
+    float thc = sqrt(radius2 - d2);
+    float t0 = adj - thc;
+    float t1 = adj + thc;
+
+    if( t0 < 0.0 && t1 < 0.0) {
+        hp.hit = false;
+        hp.color = (float3)(1,1,1);
+        return hp;
+    }
+
+    float distance =  (t0 < t1)?t0:t1;
+    hp.dist = distance;
+    hp.pos = r.origin + normalize(r.direction) * distance;
+    hp.normal = hp.pos - s.pos;
+    hp.color = s.material.color;
+    hp.hit = true;
+    hp.albedo = s.material.albedo;
+    return hp;
 }
 HitPoint plane_hit(Ray r, Plane p) {
     HitPoint hp;
@@ -184,22 +190,22 @@ bool sphere_hit_simple(Ray r, Sphere s) {
 
 float3 compute_shadowed(__global Sphere* spheres, SunLight light, uint sphere_number, HitPoint hp) {
     Ray r;
-    r.origin = hp.pos + normalize(hp.normal) * 0.0001f ;
+    r.origin = hp.pos + normalize(hp.normal) * 0.001f ;
     bool shadowed = false;
     r.direction = normalize(-light.direction);
-    for(int i = 1; i < sphere_number +1 ; i++) {
-        if(sphere_hit_simple(r, spheres[0])){
+    for(int i = 0; i < sphere_number; i++) {
+        if(sphere_hit_simple(r, spheres[i])){
             shadowed = true;
         }
     }
     if(shadowed)
         return (float3)(0,0,0);
     else {
-        float intensity = max((float)0.0,(float)dot(hp.normal,-light.direction)) * 1.0f;//light.intensity;
-        intensity = (float)dot((float3)hp.normal,(float3)-light.direction);
+        float intensity = max((float)dot(hp.normal,-light.direction),(float)0.0) * light.intensity;
+        // intensity = dot((float3)hp.normal,(float3)-light.direction);
         float reflected = hp.albedo / (float)M_PI;
 
-        return hp.color * intensity * light.color * intensity * reflected;
+        return hp.color * light.color * reflected * intensity;// * intensity * reflected;
     }
 }
 //Compute color for each points
@@ -208,7 +214,7 @@ float3  compute_color(__global SunLight* lights, __global Sphere* spheres, __glo
     Ray r;
     r.origin = hp.pos;
     for(int i = 0; i < ri.light_number; i++){
-        color = compute_shadowed(spheres,lights[i],ri.sphere_number,hp);
+        color += compute_shadowed(spheres,lights[i],ri.sphere_number,hp);
     }
     return color;
 
@@ -217,12 +223,11 @@ float3  compute_color(__global SunLight* lights, __global Sphere* spheres, __glo
 uint compute_ray_hit(__global SunLight* lights, __global Sphere* spheres, __global Plane* planes,RenderInfo ri, Ray r){
     HitPoint points[5];
     uint size = 0;
-    for(int i = 1; i< ri.sphere_number+1;i++) {
+    for(int i = 0; i< ri.sphere_number;i++) {
         HitPoint sh = sphere_hit(r, spheres[i]);
         if(sh.hit){
             points[size] = sh;
-            // float3 computed_color = compute_color(lights,spheres,planes,ris,sh);
-            // points[size].color = computed_color;
+            points[size].color = compute_color(lights,spheres,planes,ri,sh);
             size++;
         }
     }
@@ -254,9 +259,7 @@ void ray_trace(__global uint* screen, Camera camera, RenderInfo ri, __global Sph
     int x = index / ri.height;
     int y = index % ri.width;
     Ray r = create_ray(camera, x,y, ri);
-    // screen[0] = camera.pos.y;
-    // int x = index / height;
-    // int y = index % width;
+ 
 
     screen[index] = compute_ray_hit(sunlights,spheres,planes,ri,r);
 

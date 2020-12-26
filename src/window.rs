@@ -1,6 +1,7 @@
 use std::{io::{Write, stdout}, time::Instant};
 
 use minifb::*;
+use ocl::prm::Float4;
 
 use crate::graphics::{Scene, Sphere};
 
@@ -38,9 +39,9 @@ pub fn window(scene : &mut Scene) {
             .unwrap();
         let last = Instant::now();
         elapsed = (last-first).as_secs_f64();
-        
+        // scene.camera.pos = Float4::new(0,0,-8,0);        
         // scene.spheres_buf.read(&mut scene.spheres).enq().unwrap();
-        println!("float3 size : {}",&scene.get_screen()[0]);
+        // println!("float3 size : {}",&scene.get_screen()[0]);
         print!("{:.1} fps\r", 1.0/elapsed);
     }
 
